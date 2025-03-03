@@ -32,6 +32,7 @@ class NeuralNetwork(nn.Module):
                 dist = np.linalg.norm(i-current)
                 if loss < dist:
                     loss = dist
+        loss = - loss
 
     
   
@@ -67,16 +68,23 @@ def losfunction(hist, current):
     hist.append(current)
     
     return loss
-
+alpha = 0.05
 model = NeuralNetwork()
 model.apply(initialize_weights)
 hist = []
 pyboy = PyBoy("Pokemon Red.gb")  # Replace with your ROM filename
+
+optimizer = optim.SGD(model.parameters(), lr=0.001)
+optimizer.zero_grad()
+
 while True:
     save = pyboy.game_area()
     actions = predict(save)
-
-    action_index = torch.argmax(actions).item()
+    if random.random() > alpha:
+        action_index = torch.argmax(actions).item()
+    else:
+        print("random")
+        action_index = random.randint(0, 6)
     if action_index == 0:
         pyboy.button('a')
     elif action_index == 1:
@@ -91,10 +99,16 @@ while True:
         pyboy.button('right')
     elif action_index == 6:
         pyboy.button('start')
-    pyboy.tick()
+    pyboy.tick(10)
     current =pyboy.game_area()
-    loss = model.losfunction(hist, current)
+    #loss = model.losfunction(hist, current)
+    #hist.append(current)
+    loss= losfunction(hist, current)
     hist.append(current)
+    loss_tensor = torch.tensor(loss, dtype=torch.float32, requires_grad=True)
+    print(loss_tensor)
+    loss_tensor.backward()
+    
     """if ticks%200 == 0:
         loss= losfunction(hist, current)
         hist.append(current)

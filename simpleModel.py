@@ -106,6 +106,7 @@ while True:
     loss= losfunction(hist, current)
     hist.append(current)
     loss_tensor = torch.tensor(loss, dtype=torch.float32, requires_grad=True)
+    optimizer.step()
     print(loss_tensor)
     loss_tensor.backward()
     

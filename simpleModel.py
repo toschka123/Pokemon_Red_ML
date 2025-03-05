@@ -46,7 +46,7 @@ class NeuralNetwork(nn.Module):
         if loss > 2*math.e**24:
             reward = 1
             print("TASty!")
-        elif loss > 2*math.e**23:
+        elif 2*math.e**24 > loss > 2*math.e**23:
             reward = 0.01
         else:
             reward = 0

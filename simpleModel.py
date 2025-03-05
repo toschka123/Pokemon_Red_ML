@@ -5,6 +5,7 @@ import torch.optim as optim
 from pyboy import PyBoy
 from pyboy.plugins.game_wrapper_pokemon_gen1 import GameWrapperPokemonGen1
 import random 
+import math
 
 class NeuralNetwork(nn.Module):
     def __init__(self):
@@ -15,7 +16,8 @@ class NeuralNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(512, 512),
             nn.ReLU(),
-            nn.Linear(512, 7),
+            # nn.Linear(512, 7),
+            nn.Linear(512, 6), # remove start for the time being
             nn.Softmax(dim=1)  # Adding Softmax activation function
         )
 
@@ -24,7 +26,7 @@ class NeuralNetwork(nn.Module):
         logits = self.linear_relu_stack(x)
         return logits
     
-    def losfunction(self, hist,current):
+    """def losfunction(self, hist,current):
         loss = torch.tensor(0.0, requires_grad=True)
 
         if len(hist)>0:
@@ -32,7 +34,23 @@ class NeuralNetwork(nn.Module):
                 dist = np.linalg.norm(i-current)
                 if loss < dist:
                     loss = dist
-        loss = - loss
+        loss = - loss"""
+    def losfunction(self, hist, current):
+        # Compute the loss
+        loss = math.inf
+        #Find minimum distance
+        for i in hist:
+            dist = np.linalg.norm(i-current)
+            if dist < loss:
+                    loss = dist
+        if loss > 2*math.e**24:
+            reward = 1
+            print("TASty!")
+        elif loss > 2*math.e**23:
+            reward = 0.01
+        else:
+            reward = 0
+        return reward
 
     
   
@@ -59,31 +77,36 @@ def predict(save):
     # Print the output
     return(output)
 
-def losfunction(hist, current):
+"""def losfunction(hist, current):
     loss = 0
     for i in hist:
         dist = np.linalg.norm(i-current)
         if loss < dist:
             loss = dist
     hist.append(current)
-    
-    return loss
+    return -loss"""
+
 alpha = 0.05
 model = NeuralNetwork()
 model.apply(initialize_weights)
 hist = []
 pyboy = PyBoy("Pokemon Red.gb")  # Replace with your ROM filename
 
-optimizer = optim.SGD(model.parameters(), lr=0.001)
-optimizer.zero_grad()
+with open("state_file.state", "rb") as f:
+    pyboy.load_state(f)
 
+    
+optimizer = optim.SGD(model.parameters(), lr=0.0001) # try adam
+optimizer.zero_grad()
+frames = 0
 while True:
+    frames+=1
     save = pyboy.game_area()
     actions = predict(save)
     if random.random() > alpha:
-        action_index = torch.argmax(actions).item()
+        action_index = torch.argmax(actions)
     else:
-        print("random")
+        #print("random")
         action_index = random.randint(0, 6)
     if action_index == 0:
         pyboy.button('a')
@@ -97,13 +120,13 @@ while True:
         pyboy.button('left')
     elif action_index == 5:
         pyboy.button('right')
-    elif action_index == 6:
-        pyboy.button('start')
-    pyboy.tick(10)
+    # elif action_index == 6:
+        # pyboy.button('start')
+    pyboy.tick(1)
     current =pyboy.game_area()
     #loss = model.losfunction(hist, current)
     #hist.append(current)
-    loss= losfunction(hist, current)
+    loss= model.losfunction(hist, current)
     hist.append(current)
     loss_tensor = torch.tensor(loss, dtype=torch.float32, requires_grad=True)
     optimizer.step()

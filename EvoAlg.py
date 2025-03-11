@@ -16,12 +16,34 @@ def eval_fitness(indiv):
     return 0
 
 
+def play_indiv(indiv):
+    with open("state_file.state", "rb") as f:
+        pyboy.load_state(f)
+        
+    for action in indiv:
+        if i == 0:
+            pyboy.button('a')
+        elif i == 1:
+            pyboy.button('b')
+        elif i == 2:
+            pyboy.button('up')
+        elif i == 3:
+            pyboy.button('down')
+        elif i == 4:
+            pyboy.button('left')
+        elif i == 5:
+            pyboy.button('right')
+        elif i == 6:
+            pyboy.button('start')
+        pyboy.tick()
+
 def play_pop(pop):
     rewards = []
     
     for individual in pop:
         with open("state_file.state", "rb") as f:
             pyboy.load_state(f)
+        pyboy.set_emulation_speed(0) # No speed limit
         hist=[]
         hist.append(pyboy.game_area())
         reward = 0
@@ -40,7 +62,7 @@ def play_pop(pop):
                 pyboy.button('right')
             elif i == 6:
                 pyboy.button('start')
-            pyboy.tick()
+            pyboy.tick(1,False)
             current = pyboy.game_area()
 
             loss = math.inf
@@ -55,7 +77,33 @@ def play_pop(pop):
         rewards.append(reward)
     return rewards
         
-        
+def survivor_select(pop, fit):
+    survivors = []
+    for i in range(int(len(pop)/2)):
+        participants = random.sample(range(0,len(pop)), 5) 
+        best_fit_idx = participants[0]
+        for j in participants:
+            if fit[j] > fit[best_fit_idx]:
+                best_fit_idx = j
+        survivors.append(pop[best_fit_idx])
+    return survivors
+
+def uniform_crossover(population, alpha):
+    children = []
+    for individual in population:
+        kid_a = []
+        for gen in individual:
+            if random.random() > alpha:
+                #kid_a.append(random.randint(0,6))
+                kid_a.append(gen + 1 if gen < 6 else 0)
+            else:
+                kid_a.append(gen)
+        children.append(kid_a)
+        children.append(individual)
+    return children
+
+
+                
 
 def get_team_levels():
     team_levels = []
@@ -81,7 +129,12 @@ with open("state_file.state", "rb") as f:
 game_state = pyboy.memory[0xFFCF]
 team_level_sum = get_team_levels()
 
-population = initialize_pop(2, 10000)
-
-rew = play_pop(population)
-print(rew)
+population = initialize_pop(200, 20) #Maybe increase sequence as time goes on
+generations = 10
+#Itterations
+for i in range(generations):
+    rew = play_pop(population)
+    survivors = survivor_select(population, rew)
+    survivors = uniform_crossover(population, 0.2) #Make parameter smaller over mo itterations
+    print(f"Generation {i} max fitness {max(rew)}, average is {sum(rew)/len(rew)}")
+print(population)

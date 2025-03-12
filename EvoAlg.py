@@ -62,7 +62,7 @@ def play_pop(pop):
                 pyboy.button('right')
             elif i == 6:
                 pyboy.button('start')
-            pyboy.tick(1,False)
+            pyboy.tick(1,True, False)
             current = pyboy.game_area()
 
             loss = math.inf
@@ -79,7 +79,7 @@ def play_pop(pop):
         
 def survivor_select(pop, fit):
     survivors = []
-    for i in range(int(len(pop)/2)):
+    for i in range(len(pop)):
         participants = random.sample(range(0,len(pop)), 5) 
         best_fit_idx = participants[0]
         for j in participants:
@@ -94,12 +94,12 @@ def uniform_crossover(population, alpha):
         kid_a = []
         for gen in individual:
             if random.random() > alpha:
-                #kid_a.append(random.randint(0,6))
-                kid_a.append(gen + 1 if gen < 6 else 0)
+                kid_a.append(random.randint(0,6))
+                #kid_a.append(gen + 1 if gen < 6 else 0)
             else:
                 kid_a.append(gen)
         children.append(kid_a)
-        children.append(individual)
+        #children.append(individual) 
     return children
 
 
@@ -113,10 +113,10 @@ def get_team_levels():
         team_levels.append(level)
     return sum(team_levels)
 
-pop = 10
-gen = 10
-seq_length = 1000
-
+pop = 50
+gen = 20
+seq_length = 100
+alpha = 0.6
 pyboy = PyBoy("Pokemon Red.gb")  # Replace with your ROM filename
 
 with open("state_file.state", "rb") as f:
@@ -129,12 +129,14 @@ with open("state_file.state", "rb") as f:
 game_state = pyboy.memory[0xFFCF]
 team_level_sum = get_team_levels()
 
-population = initialize_pop(200, 20) #Maybe increase sequence as time goes on
+population = initialize_pop(pop, seq_length) #Maybe increase sequence as time goes on
 generations = 10
 #Itterations
 for i in range(generations):
     rew = play_pop(population)
     survivors = survivor_select(population, rew)
-    survivors = uniform_crossover(population, 0.2) #Make parameter smaller over mo itterations
+    new_generation = uniform_crossover(survivors, alpha) #Make parameter smaller over mo itterations
+    population = new_generation
     print(f"Generation {i} max fitness {max(rew)}, average is {sum(rew)/len(rew)}")
+    alpha = alpha - 0.05
 print(population)
